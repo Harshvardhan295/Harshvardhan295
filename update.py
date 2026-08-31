@@ -326,7 +326,8 @@ def stars_counter(data):
         return 0
     total_stars = 0
     for node in data:
-        total_stars += node['node']['stargazers']['totalCount']
+        if node is not None and node.get('node') is not None:  # Add null check
+            total_stars += node['node']['stargazers']['totalCount']
     return total_stars
 
 def svg_overwrite(filename, age_data, commit_data, star_data, repo_data, contrib_data, follower_data, loc_data):
