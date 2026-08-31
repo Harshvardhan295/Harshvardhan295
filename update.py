@@ -100,12 +100,22 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None, add_loc=0, del
     variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
     request = simple_request(graph_repos_stars.__name__, query, variables)
     if request.status_code == 200:
+        response = request.json()
+
+        # Surface GraphQL-level errors instead of failing silently
+        if response.get('errors'):
+            print('GraphQL errors in graph_repos_stars:', response['errors'])
+
+        repo_data = response.get('data', {}).get('user', {}).get('repositories')
+        if not repo_data:
+            return 0
+
         if count_type == 'repos':
-            return request.json()['data']['user']['repositories']['totalCount']
+            return repo_data.get('totalCount', 0)
         elif count_type == 'stars':
-            return stars_counter(request.json()['data']['user']['repositories']['edges'])
+            return stars_counter(repo_data.get('edges'))
 
-
+        
 def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, deletion_total=0, my_commits=0, cursor=None):
     """
     Uses GitHub's GraphQL v4 API and cursor pagination to fetch 100 commits from a repository at a time
@@ -307,14 +317,17 @@ def force_close_file(data, cache_comment):
     print('There was an error while writing to the cache file. The file,', filename, 'has had the partial data saved and closed.')
 
 
+
 def stars_counter(data):
     """
     Count total stars in repositories owned by me
     """
+    if not data:
+        return 0
     total_stars = 0
-    for node in data: total_stars += node['node']['stargazers']['totalCount']
+    for node in data:
+        total_stars += node['node']['stargazers']['totalCount']
     return total_stars
-
 
 def svg_overwrite(filename, age_data, commit_data, star_data, repo_data, contrib_data, follower_data, loc_data):
     """
